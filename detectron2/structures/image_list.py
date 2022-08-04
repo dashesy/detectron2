@@ -86,7 +86,10 @@ class ImageList(object):
 
         image_sizes = [(im.shape[-2], im.shape[-1]) for im in tensors]
         image_sizes_tensor = [shapes_to_tensor(x) for x in image_sizes]
-        max_size = torch.stack(image_sizes_tensor).max(0).values
+        if len(tensors) == 1:
+            max_size = image_sizes_tensor[0]
+        else:
+            max_size = torch.stack(image_sizes_tensor).max(0).values
 
         if padding_constraints is not None:
             square_size = padding_constraints.get("square_size", 0)
@@ -99,6 +102,7 @@ class ImageList(object):
             stride = size_divisibility
             # the last two dims are H,W, both subject to divisibility requirement
             max_size = (max_size + (stride - 1)).div(stride, rounding_mode="floor") * stride
+            # max_size = ((max_size + (stride - 1)) // stride ) * stride
 
         # handle weirdness of scripting and tracing ...
         if torch.jit.is_scripting():

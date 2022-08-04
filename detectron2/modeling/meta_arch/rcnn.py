@@ -199,7 +199,7 @@ class GeneralizedRCNN(nn.Module):
             Otherwise, a list[Instances] containing raw network outputs.
         """
         assert not self.training
-
+        
         images = self.preprocess_image(batched_inputs)
         features = self.backbone(images.tensor)
 
@@ -224,7 +224,8 @@ class GeneralizedRCNN(nn.Module):
         """
         Normalize, pad and batch the input images.
         """
-        images = [self._move_to_current_device(x["image"]) for x in batched_inputs]
+        # images = [self._move_to_current_device(x["image"]) for x in batched_inputs]
+        images = [x["image"] for x in batched_inputs]
         images = [(x - self.pixel_mean) / self.pixel_std for x in images]
         images = ImageList.from_tensors(
             images,
