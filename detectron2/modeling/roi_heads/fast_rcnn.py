@@ -538,12 +538,14 @@ class FastRCNNOutputLayers(nn.Module):
         if not len(proposals):
             return []
         _, proposal_deltas = predictions
-        num_prop_per_image = [len(p) for p in proposals]
         proposal_boxes = cat([p.proposal_boxes.tensor for p in proposals], dim=0)
         predict_boxes = self.box2box_transform.apply_deltas(
             proposal_deltas,
             proposal_boxes,
         )  # Nx(KxB)
+        if len(proposals) == 1:
+            return (predict_boxes,)
+        num_prop_per_image = [len(p) for p in proposals]
         return predict_boxes.split(num_prop_per_image)
 
     def predict_probs(
@@ -561,9 +563,11 @@ class FastRCNNOutputLayers(nn.Module):
                 Element i has shape (Ri, K + 1), where Ri is the number of proposals for image i.
         """
         scores, _ = predictions
-        num_inst_per_image = [len(p) for p in proposals]
         if self.use_sigmoid_ce:
             probs = scores.sigmoid()
         else:
             probs = F.softmax(scores, dim=-1)
+        if len(proposals) == 1:
+            return (probs,)
+        num_inst_per_image = [len(p) for p in proposals]
         return probs.split(num_inst_per_image, dim=0)

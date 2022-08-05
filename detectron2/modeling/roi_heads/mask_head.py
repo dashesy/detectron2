@@ -151,8 +151,11 @@ def mask_rcnn_inference(pred_mask_logits: torch.Tensor, pred_instances: List[Ins
         mask_probs_pred = pred_mask_logits[indices, class_pred][:, None].sigmoid()
     # mask_probs_pred.shape: (B, 1, Hmask, Wmask)
 
-    num_boxes_per_image = [len(i) for i in pred_instances]
-    mask_probs_pred = mask_probs_pred.split(num_boxes_per_image, dim=0)
+    if len(pred_instances) == 1:
+        mask_probs_pred = (mask_probs_pred,)
+    else:
+        num_boxes_per_image = [len(i) for i in pred_instances]
+        mask_probs_pred = mask_probs_pred.split(num_boxes_per_image, dim=0)
 
     for prob, instances in zip(mask_probs_pred, pred_instances):
         instances.pred_masks = prob  # (1, Hmask, Wmask)
