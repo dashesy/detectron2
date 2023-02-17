@@ -85,7 +85,7 @@ class ImageList(object):
             assert t.shape[:-2] == tensors[0].shape[:-2], t.shape
 
         image_sizes = [(im.shape[-2], im.shape[-1]) for im in tensors]
-        image_sizes_tensor = [shapes_to_tensor(x) for x in image_sizes]
+        image_sizes_tensor = [shapes_to_tensor(x, stack=(len(tensors) != 1)) for x in image_sizes]
         if len(tensors) == 1:
             max_size = image_sizes_tensor[0]
         else:
@@ -101,12 +101,18 @@ class ImageList(object):
         if size_divisibility > 1:
             stride = size_divisibility
             # the last two dims are H,W, both subject to divisibility requirement
-            max_size = (max_size + (stride - 1)).div(stride, rounding_mode="floor") * stride
-            # max_size = ((max_size + (stride - 1)) // stride ) * stride
+            if len(tensors) == 1:
+                max_size = [((m + (stride - 1)) // stride ) * stride for m in max_size]
+            else:
+                # max_size = (max_size + (stride - 1)).div(stride, rounding_mode="floor") * stride
+                max_size = ((max_size + (stride - 1)) // stride ) * stride
 
         # handle weirdness of scripting and tracing ...
         if torch.jit.is_scripting():
-            max_size: List[int] = max_size.to(dtype=torch.long).tolist()
+            if len(tensors) == 1:
+                max_size: List[int] = [m.to(dtype=torch.long) for m in max_size]
+            else:
+                max_size: List[int] = max_size.to(dtype=torch.long).tolist()
         else:
             if torch.jit.is_tracing():
                 image_sizes = image_sizes_tensor
@@ -116,7 +122,7 @@ class ImageList(object):
             # TODO: check whether it's faster for multiple images as well
             image_size = image_sizes[0]
             padding_size = [0, max_size[-1] - image_size[1], 0, max_size[-2] - image_size[0]]
-            batched_imgs = F.pad(tensors[0], padding_size, value=pad_value).unsqueeze_(0)
+            batched_imgs = F.pad(tensors[0], padding_size, value=pad_value).unsqueeze(0)
         else:
             # max_size can be a tensor in tracing mode, therefore convert to list
             batch_shape = [len(tensors)] + list(tensors[0].shape[:-2]) + list(max_size)

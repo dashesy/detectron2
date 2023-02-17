@@ -14,7 +14,7 @@ import torch
 from torch.nn import functional as F
 
 
-def shapes_to_tensor(x: List[int], device: Optional[torch.device] = None) -> torch.Tensor:
+def shapes_to_tensor(x: List[int], device: Optional[torch.device] = None, stack: bool = True) -> torch.Tensor:
     """
     Turn a list of integer scalars or integer Tensor scalars into a vector,
     in a way that's both traceable and scriptable.
@@ -29,9 +29,14 @@ def shapes_to_tensor(x: List[int], device: Optional[torch.device] = None) -> tor
             [isinstance(t, torch.Tensor) for t in x]
         ), "Shape should be tensor during tracing!"
         # as_tensor should not be used in tracing because it records a constant
-        ret = torch.stack(x)
-        if ret.device != device:  # avoid recording a hard-coded device if not necessary
-            ret = ret.to(device=device)
+        ret = x
+        if stack:
+            ret = torch.stack(x)
+        if device and ret.device != device:  # avoid recording a hard-coded device if not necessary
+            if stack:
+                ret = ret.to(device=device)
+            else:
+                ret = [r.to(device=device) for r in ret]
         return ret
     return torch.as_tensor(x, device=device)
 
