@@ -159,7 +159,8 @@ def fast_rcnn_inference_single_image(
     scores = scores[filter_mask]
 
     # 2. Apply NMS for each class independently.
-    keep = batched_nms(boxes, scores, filter_inds[:, 1], nms_thresh)
+    # TODO: NMS ONNX cannot export with float16, so we cast to float32 for now
+    keep = batched_nms(boxes.float(), scores.float(), filter_inds[:, 1], nms_thresh)
     if topk_per_image >= 0:
         keep = keep[:topk_per_image]
     boxes, scores, filter_inds = boxes[keep], scores[keep], filter_inds[keep]
