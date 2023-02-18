@@ -1,4 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
+import torch
 from torch import nn
 from torchvision.ops import roi_align
 
@@ -55,6 +56,17 @@ class ROIAlign(nn.Module):
         assert rois.dim() == 2 and rois.size(1) == 5
         if input.is_quantized:
             input = input.dequantize()
+        if torch.jit.is_tracing():
+            # TODO: ROIAlign tracing for ONNX with half has issues, results in copy to host
+            return roi_align(
+                input.float(),
+                rois.float(),
+                self.output_size,
+                self.spatial_scale,
+                self.sampling_ratio,
+                self.aligned,
+            ).to(dtype=input.dtype)
+
         return roi_align(
             input,
             rois.to(dtype=input.dtype),
